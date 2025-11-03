@@ -1,0 +1,90 @@
+# GoReleaser configuration for WinDash Agent
+# https://goreleaser.com
+
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: windash-agent
+    main: ./cmd/agent
+    binary: WinDash-Agent
+    
+    env:
+      - CGO_ENABLED=0
+    
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.buildTime={{.Date}}
+      - -X main.goVersion={{.Env.GO_VERSION}}
+    
+    goos:
+      - windows
+      - darwin
+      - linux
+    
+    goarch:
+      - amd64
+      - arm64
+    
+    # Windows-specific settings
+    hooks:
+      post:
+        - cmd: echo "Built {{.Path}}"
+
+archives:
+  - id: default
+    format: zip
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
+
+# TODO: Windows code signing (post-MVP)
+# signs:
+#   - artifacts: checksum
+#     cmd: signtool
+#     args:
+#       - sign
+#       - /f
+#       - ${certificate}
+#       - /p
+#       - ${password}
+#       - ${artifact}
+
+# TODO: macOS notarization (post-MVP)
+# notarize:
+#   macos:
+#     - enabled: true
+#       sign:
+#         certificate: "{{.Env.MACOS_SIGN_CERTIFICATE}}"
+#       notarize:
+#         issuer_id: "{{.Env.MACOS_NOTARY_ISSUER_ID}}"
+#         key_id: "{{.Env.MACOS_NOTARY_KEY_ID}}"
+#         key: "{{.Env.MACOS_NOTARY_KEY}}"
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+release:
+  github:
+    owner: jcdorr003
+    name: windash-agent
+  draft: true
+  prerelease: auto

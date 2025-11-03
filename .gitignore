@@ -1,0 +1,45 @@
+# Binaries and build outputs
+dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+WinDash-Agent
+WinDash-Agent.exe
+
+# Test binaries
+*.test
+*.out
+
+# Go workspace file
+go.work
+
+# Dependency directories
+vendor/
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Config (don't commit local configs)
+agent.json
+
+# OS-specific
+Thumbs.db
+.Trash-*
+
+# Goreleaser
+.goreleaser.yml.bak
+
+# Temporary files
+*.tmp
+tmp/
