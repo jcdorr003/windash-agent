@@ -1,17 +1,17 @@
 # WinDash Agent
 
-> Lightweight system monitoring agent for WinDash - Send real-time PC metrics to your dashboard
+> Lightweight Windows system monitoring agent - Send real-time PC metrics to your WinDash dashboard
 
 ## 🚀 Quick Start
 
-### For Windows Users (Your Friends!)
+### For Windows Users
 
 1. **Download** the latest `WinDash-Agent.exe` from [Releases](https://github.com/jcdorr003/windash-agent/releases)
 2. **Double-click** `WinDash-Agent.exe` to run it
-3. **Approve** the device in your browser (opens automatically)
+3. **Approve** the device in your browser (opens automatically to `windash.jcdorr3.dev`)
 4. **Done!** The agent is now sending metrics to your dashboard
 
-That's it! The agent runs in the background and automatically starts monitoring your system.
+The agent runs in the console window. Press Ctrl+C to stop it.
 
 ---
 
@@ -72,7 +72,7 @@ Logs are automatically saved and rotated (keeps last 7 days):
 
 ### Prerequisites
 
-- Go 1.22 or higher
+- Go 1.22 or higher (uses Go 1.24 for latest features)
 - Git
 
 ### Build from Source
@@ -138,27 +138,36 @@ go build -ldflags "-X main.version=1.0.0 -X main.buildTime=$(date -u +%Y-%m-%d_%
 
 ### Pairing Flow
 
-1. **First Run**: Agent requests device code from backend (currently mocked)
-2. **Browser Opens**: User sees pairing page at `/pair?code=XXXX-XXXX`
-3. **User Approves**: In the WinDash dashboard
+1. **First Run**: Agent requests device code from backend (currently using mock - returns instant code)
+2. **Browser Opens**: User is directed to pairing page at `windash.jcdorr3.dev/pair?code=XXXX-XXXX`
+3. **User Approves**: In the WinDash dashboard (backend integration pending)
 4. **Token Issued**: Backend issues authentication token
-5. **Token Stored**: Securely saved in OS keychain
-6. **Subsequent Runs**: Token reused, no pairing needed
+5. **Token Stored**: Securely saved in Windows Credential Manager via DPAPI
+6. **Subsequent Runs**: Token reused automatically, no re-pairing needed
+
+### Current Status
+
+- ✅ **Pairing UI Flow**: Opens browser to correct URL
+- ⏳ **Backend Integration**: Mock API simulates 6-second approval (replace with real API)
+- ✅ **Token Storage**: Windows Credential Manager integration working
+- ⏳ **WebSocket**: Client ready, waiting for backend endpoint
 
 ### Metrics Collection
 
-- Uses `gopsutil` for cross-platform system metrics
-- Collects samples every 2s (configurable)
-- Network rates calculated from deltas
-- Stable `hostId` from machine ID
+- Uses `gopsutil/v4` for cross-platform system metrics
+- Collects samples every 2 seconds (configurable via `metricsIntervalMs`)
+- Network rates calculated from byte deltas between collections
+- Stable `hostId` generated from machine ID (persists across reboots)
+- Zero-allocation metric collection for optimal performance
 
 ### WebSocket Client
 
-- Auto-reconnect with exponential backoff + jitter
-- Backpressure handling (drops oldest samples if buffer full)
-- Batch sending (up to 10 samples per message)
-- Heartbeat pings every 10s
-- Compression enabled (permessage-deflate)
+- Auto-reconnect with exponential backoff (1s → 2min) + 20% jitter
+- Backpressure handling: drops oldest samples if buffer full (warns every 10 drops)
+- Batch sending: sends up to 10 samples per WebSocket message
+- Heartbeat: pings every 10 seconds to keep connection alive
+- Compression: permessage-deflate enabled
+- Graceful shutdown: closes connection cleanly on Ctrl+C
 
 ---
 
@@ -224,8 +233,7 @@ See [LICENSE](LICENSE) file.
 ## 💬 Support
 
 - GitHub Issues: [jcdorr003/windash-agent/issues](https://github.com/jcdorr003/windash-agent/issues)
-- Email: [your-email@example.com]
 
 ---
 
-**Made with ❤️ for easy Windows PC monitoring**
+**Made with ❤️ for Windows PC monitoring**

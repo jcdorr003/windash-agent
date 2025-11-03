@@ -124,6 +124,11 @@ func (c *Collector) collect() *SampleV1 {
 
 	// Disk metrics
 	if partitions, err := disk.Partitions(false); err == nil {
+		sample.Disks = make([]struct {
+			Name  string `json:"name"`
+			Used  uint64 `json:"used"`
+			Total uint64 `json:"total"`
+		}, 0, len(partitions))
 		for _, partition := range partitions {
 			if usage, err := disk.Usage(partition.Mountpoint); err == nil {
 				sample.Disks = append(sample.Disks, struct {

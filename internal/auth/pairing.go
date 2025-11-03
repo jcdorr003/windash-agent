@@ -79,7 +79,9 @@ func EnsurePaired(ctx context.Context, api PairingAPI, store *TokenStore, cfg *c
 
 	// First run - need to pair
 	logger.Info("🆕 First run detected - starting pairing flow...")
-	fmt.Println("\n🆕 First time setup - Let's pair your device!\n")
+	fmt.Println()
+	fmt.Println("🆕 First time setup - Let's pair your device!")
+	fmt.Println()
 
 	// Request device code from backend
 	code, expiresAt, err := api.RequestCode(ctx)
@@ -129,7 +131,9 @@ func EnsurePaired(ctx context.Context, api PairingAPI, store *TokenStore, cfg *c
 	}
 
 	logger.Info("✅ Pairing complete!")
-	fmt.Println("\n✅ Device paired successfully!\n")
+	fmt.Println()
+	fmt.Println("✅ Device paired successfully!")
+	fmt.Println()
 
 	return token, true, nil
 }

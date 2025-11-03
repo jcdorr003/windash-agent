@@ -43,9 +43,11 @@ func main() {
 
 	// Welcome message
 	logger.Info("🚀 WinDash Agent starting", "version", version)
-	fmt.Println("\n╔══════════════════════════════════════╗")
+	fmt.Println()
+	fmt.Println("╔══════════════════════════════════════╗")
 	fmt.Println("║       WinDash Agent v" + version + "          ║")
-	fmt.Println("╚══════════════════════════════════════╝\n")
+	fmt.Println("╚══════════════════════════════════════╝")
+	fmt.Println()
 
 	// Load configuration
 	cfg, err := config.Load()
