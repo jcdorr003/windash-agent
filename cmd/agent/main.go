@@ -67,7 +67,7 @@ func main() {
 	}
 
 	// Initialize pairing components
-	pairingAPI := auth.NewMockPairingAPI(logger)
+	pairingAPI := auth.NewRealPairingAPI(logger, cfg.DashboardURL)
 	tokenStore := auth.NewTokenStore(logger)
 
 	// Ensure device is paired

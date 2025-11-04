@@ -2,7 +2,10 @@ package auth
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"time"
 
 	"github.com/jcdorr003/windash-agent/internal/config"
@@ -11,10 +14,126 @@ import (
 )
 
 // PairingAPI defines the interface for device pairing operations
-// TODO: Replace MockPairingAPI with real HTTP client when backend is ready
 type PairingAPI interface {
 	RequestCode(ctx context.Context) (code string, expiresAt time.Time, err error)
 	ExchangeCode(ctx context.Context, code string) (token string, err error)
+}
+
+// RealPairingAPI implements device pairing with the WinDash backend
+type RealPairingAPI struct {
+	logger     *zap.SugaredLogger
+	httpClient *http.Client
+	baseURL    string
+}
+
+// NewRealPairingAPI creates a new real pairing API client
+func NewRealPairingAPI(logger *zap.SugaredLogger, baseURL string) *RealPairingAPI {
+	return &RealPairingAPI{
+		logger: logger,
+		httpClient: &http.Client{
+			Timeout: 10 * time.Second,
+		},
+		baseURL: baseURL,
+	}
+}
+
+// deviceCodeResponse represents the response from POST /api/device-codes
+type deviceCodeResponse struct {
+	Code      string    `json:"code"`
+	ExpiresAt time.Time `json:"expiresAt"`
+}
+
+// deviceTokenResponse represents the response from GET /api/device-token
+type deviceTokenResponse struct {
+	Token string `json:"token"`
+}
+
+// RequestCode requests a new device pairing code from the backend
+func (r *RealPairingAPI) RequestCode(ctx context.Context) (string, time.Time, error) {
+	r.logger.Info("🔐 Requesting device code from backend...")
+
+	url := r.baseURL + "/api/device-codes"
+	req, err := http.NewRequestWithContext(ctx, "POST", url, nil)
+	if err != nil {
+		return "", time.Time{}, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := r.httpClient.Do(req)
+	if err != nil {
+		return "", time.Time{}, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", time.Time{}, fmt.Errorf("unexpected status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var result deviceCodeResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", time.Time{}, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	r.logger.Info("✅ Device code received", "code", result.Code, "expiresAt", result.ExpiresAt.Format("15:04:05"))
+	return result.Code, result.ExpiresAt, nil
+}
+
+// ExchangeCode polls the backend for device approval and token
+func (r *RealPairingAPI) ExchangeCode(ctx context.Context, code string) (string, error) {
+	r.logger.Info("🔄 Polling for device approval...")
+
+	url := fmt.Sprintf("%s/api/device-token?code=%s", r.baseURL, code)
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		case <-ticker.C:
+			req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+			if err != nil {
+				r.logger.Warn("Failed to create request", "error", err)
+				continue
+			}
+
+			resp, err := r.httpClient.Do(req)
+			if err != nil {
+				r.logger.Warn("Request failed", "error", err)
+				continue
+			}
+
+			switch resp.StatusCode {
+			case http.StatusOK:
+				// Token approved!
+				var result deviceTokenResponse
+				if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+					resp.Body.Close()
+					return "", fmt.Errorf("failed to decode token response: %w", err)
+				}
+				resp.Body.Close()
+				r.logger.Info("✅ Device approved! Token received")
+				return result.Token, nil
+
+			case http.StatusNotFound:
+				// Still pending
+				resp.Body.Close()
+				r.logger.Debug("⏳ Waiting for user to approve device...")
+
+			case http.StatusGone:
+				// Code expired
+				resp.Body.Close()
+				return "", fmt.Errorf("device code expired - please restart the agent")
+
+			default:
+				body, _ := io.ReadAll(resp.Body)
+				resp.Body.Close()
+				r.logger.Warn("Unexpected status during polling", "status", resp.StatusCode, "body", string(body))
+			}
+		}
+	}
 }
 
 // MockPairingAPI simulates the pairing flow for development/testing
@@ -32,7 +151,6 @@ func (m *MockPairingAPI) RequestCode(ctx context.Context) (string, time.Time, er
 	m.logger.Info("🔐 [MOCK] Requesting device code from backend...")
 	time.Sleep(500 * time.Millisecond) // Simulate network delay
 
-	// Generate a fake device code (TODO: This will come from your backend)
 	code := fmt.Sprintf("%04d-%04d", time.Now().Unix()%10000, time.Now().Unix()%10000)
 	expiresAt := time.Now().Add(10 * time.Minute)
 
@@ -54,7 +172,6 @@ func (m *MockPairingAPI) ExchangeCode(ctx context.Context, code string) (string,
 		}
 	}
 
-	// Generate a mock token (TODO: This will come from your backend after approval)
 	token := fmt.Sprintf("mock_token_%d", time.Now().Unix())
 	m.logger.Info("✅ [MOCK] Device approved! Token received")
 
