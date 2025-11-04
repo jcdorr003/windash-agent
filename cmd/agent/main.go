@@ -28,6 +28,7 @@ func main() {
 	debugFlag := flag.Bool("debug", false, "Enable debug logging")
 	versionFlag := flag.Bool("version", false, "Show version and exit")
 	resetFlag := flag.Bool("reset", false, "Delete stored token and force re-pairing")
+	envFlag := flag.String("env", "", "Set agent environment (localdev, localprod, remoteprod)")
 	flag.Parse()
 
 	// Show version and exit
@@ -56,10 +57,33 @@ func main() {
 		logger.Fatal("Failed to load config", "error", err)
 	}
 
+	// Override env from CLI flag if provided
+	if *envFlag != "" {
+		cfg.Env = *envFlag
+		// Re-apply endpoint selection logic
+		switch cfg.Env {
+		case "localdev":
+			cfg.DashboardURL = config.DashboardURLLocalDev
+			cfg.APIURL = config.APIURLLocalDev
+		case "localprod":
+			cfg.DashboardURL = config.DashboardURLLocalProd
+			cfg.APIURL = config.APIURLLocalProd
+		case "remoteprod":
+			cfg.DashboardURL = config.DashboardURLRemoteProd
+			cfg.APIURL = config.APIURLRemoteProd
+		default:
+			cfg.DashboardURL = config.DashboardURLLocalDev
+			cfg.APIURL = config.APIURLLocalDev
+		}
+	}
+
 	logger.Info("📁 Configuration loaded",
 		"configDir", cfg.ConfigDir,
 		"logDir", cfg.LogDir,
 		"metricsInterval", fmt.Sprintf("%dms", cfg.MetricsIntervalMs),
+		"env", cfg.Env,
+		"dashboardUrl", cfg.DashboardURL,
+		"apiUrl", cfg.APIURL,
 	)
 
 	// Ensure directories exist

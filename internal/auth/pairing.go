@@ -33,7 +33,7 @@ func NewRealPairingAPI(logger *zap.SugaredLogger, baseURL string) *RealPairingAP
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
-		baseURL: baseURL,
+		baseURL: baseURL, // This should be DashboardURL from config, which is set per env
 	}
 }
 

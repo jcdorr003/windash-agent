@@ -8,13 +8,21 @@ import (
 )
 
 const (
-	DashboardURLDefault = "http://192.168.1.57:3004"
-	APIURLDefault       = "ws://192.168.1.57:3005/agent"
-	KeychainService     = "com.windash.agent"
+	EnvDefault                  = "remoteprod"
+	DashboardURLLocalDev        = "http://localhost:5173"
+	APIURLLocalDev              = "ws://localhost:3001/agent"
+	DashboardURLLocalProd       = "http://localhost:3000"
+	APIURLLocalProd             = "ws://localhost:3001/agent"
+	DashboardURLRemoteProd      = "https://windash.jcdorr3.net"
+	APIURLRemoteProd            = "wss://windash.jcdorr3.net/agent"
+	DashboardURLLocalDockerProd = "http://192.168.1.57:3004"
+	APIURLLocalDockerProd       = "ws://192.168.1.57:3005/agent"
+	KeychainService             = "com.windash.agent"
 )
 
 // Config holds the agent configuration
 type Config struct {
+	Env               string `json:"env" mapstructure:"env"`
 	DashboardURL      string `json:"dashboardUrl" mapstructure:"dashboardUrl"`
 	APIURL            string `json:"apiUrl" mapstructure:"apiUrl"`
 	MetricsIntervalMs int    `json:"metricsIntervalMs" mapstructure:"metricsIntervalMs"`
@@ -25,6 +33,7 @@ type Config struct {
 }
 
 // Load reads configuration from file, environment variables, and defaults
+
 func Load() (*Config, error) {
 	// Ensure directories exist first
 	if err := EnsureDirs(); err != nil {
@@ -34,8 +43,7 @@ func Load() (*Config, error) {
 	v := viper.New()
 
 	// Set defaults
-	v.SetDefault("dashboardUrl", DashboardURLDefault)
-	v.SetDefault("apiUrl", APIURLDefault)
+	v.SetDefault("env", EnvDefault)
 	v.SetDefault("metricsIntervalMs", 2000)
 	v.SetDefault("openOnStart", true)
 
@@ -47,7 +55,7 @@ func Load() (*Config, error) {
 	// Read existing config (ignore error if file doesn't exist)
 	_ = v.ReadInConfig()
 
-	// Environment variables override (e.g., WINDASH_DASHBOARD_URL)
+	// Environment variables override (e.g., WINDASH_ENV)
 	v.SetEnvPrefix("WINDASH")
 	v.AutomaticEnv()
 
@@ -55,6 +63,46 @@ func Load() (*Config, error) {
 	cfg := &Config{}
 	if err := v.Unmarshal(cfg); err != nil {
 		return nil, err
+	}
+
+	// Set endpoints based on env, unless overridden in config
+	switch cfg.Env {
+	case "localdev":
+		if cfg.DashboardURL == "" {
+			cfg.DashboardURL = DashboardURLLocalDev
+		}
+		if cfg.APIURL == "" {
+			cfg.APIURL = APIURLLocalDev
+		}
+	case "localprod":
+		if cfg.DashboardURL == "" {
+			cfg.DashboardURL = DashboardURLLocalProd
+		}
+		if cfg.APIURL == "" {
+			cfg.APIURL = APIURLLocalProd
+		}
+	case "localdockerprod":
+		if cfg.DashboardURL == "" {
+			cfg.DashboardURL = DashboardURLLocalDockerProd
+		}
+		if cfg.APIURL == "" {
+			cfg.APIURL = APIURLLocalDockerProd
+		}
+	case "remoteprod":
+		if cfg.DashboardURL == "" {
+			cfg.DashboardURL = DashboardURLRemoteProd
+		}
+		if cfg.APIURL == "" {
+			cfg.APIURL = APIURLRemoteProd
+		}
+	default:
+		// fallback to remoteprod
+		if cfg.DashboardURL == "" {
+			cfg.DashboardURL = DashboardURLRemoteProd
+		}
+		if cfg.APIURL == "" {
+			cfg.APIURL = APIURLRemoteProd
+		}
 	}
 
 	// Set runtime paths
@@ -84,8 +132,9 @@ func (c *Config) Save() error {
 // writeDefaultConfig creates a new config file with defaults and helpful comments
 func writeDefaultConfig(path string) error {
 	cfg := &Config{
-		DashboardURL:      DashboardURLDefault,
-		APIURL:            APIURLDefault,
+		Env:               EnvDefault,
+		DashboardURL:      DashboardURLRemoteProd,
+		APIURL:            APIURLRemoteProd,
 		MetricsIntervalMs: 2000,
 		OpenOnStart:       true,
 	}
