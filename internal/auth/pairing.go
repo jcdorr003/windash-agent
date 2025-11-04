@@ -45,7 +45,9 @@ type deviceCodeResponse struct {
 
 // deviceTokenResponse represents the response from GET /api/device-token
 type deviceTokenResponse struct {
-	Token string `json:"token"`
+	Token    string `json:"token"`
+	HostID   string `json:"hostId"`
+	DeviceID string `json:"deviceId"`
 }
 
 // RequestCode requests a new device pairing code from the backend
@@ -66,7 +68,7 @@ func (r *RealPairingAPI) RequestCode(ctx context.Context) (string, time.Time, er
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(resp.Body)
 		return "", time.Time{}, fmt.Errorf("unexpected status %d: %s", resp.StatusCode, string(body))
 	}
@@ -203,6 +205,9 @@ func EnsurePaired(ctx context.Context, api PairingAPI, store *TokenStore, cfg *c
 	// Request device code from backend
 	code, expiresAt, err := api.RequestCode(ctx)
 	if err != nil {
+		fmt.Printf("\n❌ Failed to request device code from backend:\n")
+		fmt.Printf("   Error: %v\n", err)
+		fmt.Printf("   Backend URL: %s/api/device-codes\n\n", cfg.DashboardURL)
 		return "", true, fmt.Errorf("failed to request device code: %w", err)
 	}
 

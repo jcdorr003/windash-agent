@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math/rand/v2"
 	"net/url"
 	"time"
@@ -110,6 +111,8 @@ func (c *Client) connect(ctx context.Context) error {
 	q.Set("hostId", c.hostID)
 	u.RawQuery = q.Encode()
 
+	c.logger.Debug("Connecting to WebSocket", "url", u.String())
+
 	// Set up headers
 	header := make(map[string][]string)
 	header["Authorization"] = []string{fmt.Sprintf("Bearer %s", c.token)}
@@ -122,6 +125,8 @@ func (c *Client) connect(ctx context.Context) error {
 	conn, resp, err := dialer.DialContext(ctx, u.String(), header)
 	if err != nil {
 		if resp != nil {
+			body, _ := io.ReadAll(resp.Body)
+			c.logger.Debug("WebSocket connection failed", "status", resp.StatusCode, "body", string(body))
 			return fmt.Errorf("WebSocket dial failed (HTTP %d): %w", resp.StatusCode, err)
 		}
 		return fmt.Errorf("WebSocket dial failed: %w", err)
@@ -267,6 +272,8 @@ func (c *Client) handleControlMessage(msg *ControlMessage) {
 	c.logger.Info("📥 Received control message", "type", msg.Type)
 
 	switch msg.Type {
+	case "connected":
+		c.logger.Info("✅ Server acknowledged connection")
 	case "setRate":
 		c.logger.Info("🔧 [TODO] Change metrics interval", "intervalMs", msg.IntervalMs)
 		// TODO: Implement runtime interval adjustment

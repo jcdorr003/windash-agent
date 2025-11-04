@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	DashboardURLDefault = "https://windash.jcdorr3.dev"
-	APIURLDefault       = "wss://windash.jcdorr3.dev/agent"
+	DashboardURLDefault = "http://192.168.1.57:3004"
+	APIURLDefault       = "ws://192.168.1.57:3005/agent"
 	KeychainService     = "com.windash.agent"
 )
 

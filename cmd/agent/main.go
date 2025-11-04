@@ -27,6 +27,7 @@ func main() {
 	// Parse command-line flags
 	debugFlag := flag.Bool("debug", false, "Enable debug logging")
 	versionFlag := flag.Bool("version", false, "Show version and exit")
+	resetFlag := flag.Bool("reset", false, "Delete stored token and force re-pairing")
 	flag.Parse()
 
 	// Show version and exit
@@ -70,13 +71,29 @@ func main() {
 	pairingAPI := auth.NewRealPairingAPI(logger, cfg.DashboardURL)
 	tokenStore := auth.NewTokenStore(logger)
 
+	// Handle reset flag - force fresh pairing
+	if *resetFlag {
+		deviceID, err := auth.GetMachineID()
+		if err != nil {
+			logger.Warn("Failed to get device ID for reset", "error", err)
+		} else {
+			if err := tokenStore.DeleteToken(deviceID); err != nil {
+				logger.Info("🔄 No existing token to delete (first run)")
+			} else {
+				logger.Info("🔄 Deleted stored token - forcing fresh pairing")
+				fmt.Println("🔄 Reset successful - will trigger pairing flow\n")
+			}
+		}
+	}
+
 	// Ensure device is paired
 	token, firstRun, err := auth.EnsurePaired(context.Background(), pairingAPI, tokenStore, cfg, logger)
 	if err != nil {
+		fmt.Println("\n❌ Pairing failed:", err)
+		fmt.Println("\nPress Enter to exit...")
+		fmt.Scanln()
 		logger.Fatal("Pairing failed", "error", err)
-	}
-
-	// Open browser if configured
+	} // Open browser if configured
 	if cfg.OpenOnStart {
 		if err := auth.OpenDashboard(cfg.DashboardURL); err != nil {
 			logger.Warn("Failed to open browser", "error", err)
